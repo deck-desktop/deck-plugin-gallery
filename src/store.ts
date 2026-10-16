@@ -57,7 +57,7 @@ export function load(): Promise<void> {
     try {
       const t = await configRead(CFG);
       if (t.trim()) { settings = { ...DEFAULTS, ...JSON.parse(t) }; lastCfg = t; }
-    } catch { /* defaults */ }
+    } catch (e) { console.warn("[gallery] settings load failed", e); /* defaults */ }
     try {
       const t = await configRead(INDEX);
       if (t.trim()) {
