@@ -4,6 +4,6 @@
   "description": "Every photo and video on this PC's drives, newest first and grouped by date, with Windows' own thumbnails. A full-size viewer and slideshow, favourites, move, copy and delete to the Recycle Bin.",
   "icon": "Images",
   "color": "#e879f9",
-  "version": "1.0.1",
-  "minDeck": "0.21.0"
+  "version": "1.0.2",
+  "minDeck": "1.5.0"
 }
