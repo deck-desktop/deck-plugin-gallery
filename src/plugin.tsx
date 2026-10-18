@@ -7,12 +7,21 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   Star, Play, RefreshCw, X, ChevronLeft, ChevronRight, Trash2, FolderOpen, ExternalLink, Copy,
-  FolderInput, EyeOff, Pause, Images, Search, ChevronDown, Folder, ClipboardCopy, Check, Image as ImageIcon,
+  FolderInput, EyeOff, Pause, Search, ChevronDown, Folder, ClipboardCopy, Check, Image as ImageIcon,
   Info, Wallpaper, Layers, MapPin,
 } from "lucide-react";
 import { convertFileSrc, fsOpen, fsReveal, fsThumbnail, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
 import { getSettings as deckSettings, saveSettings as saveDeckSettings } from "../shim/settings.js";
 import { ConfirmDialog, ContextMenu, Segmented, TextInput, Field, toast, type ConfirmState, type MenuEntry } from "../shim/ui.js";
+
+/** The favourite star, in the amber tone (a light theme darkens it). */
+const STAR = "rgb(var(--tone-amber-300))";
+/** A toolbar button beside text: a secondary button the size of the toolbar's controls. */
+const BAR_BTN = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-subtle bg-elev px-2.5 text-[12px] text-text-secondary transition-colors hover:border-strong hover:text-text-primary disabled:opacity-50";
+/** A quiet text button inside a bar: Back, Clear, the selection's actions. */
+const BAR_TEXT = "inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary";
+/** An icon-only toolbar button. */
+const ICON_BTN = "grid size-7 shrink-0 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary"
 import {
   albums, clickSelect, ext, fmtSize, folderOf, groupByDate, groupsByDate, kindOf, moveFocus, nameOf, needsThumbView, playsInline, rowRange,
   sortItems, toRows, typeCounts, visible, favKey, when,
@@ -126,7 +135,7 @@ function Tile({ item, size, selected, selecting, focused, onClick, onMenu }: {
       {kindOf(item.path) === "video" && (
         <span className="absolute bottom-1 left-1 rounded p-0.5 text-white" style={{ background: "rgba(0,0,0,0.6)" }}><Play size={11} fill="currentColor" /></span>
       )}
-      {fav && <span className="absolute right-1 top-1" style={{ color: "#fde047" }}><Star size={13} fill="currentColor" /></span>}
+      {fav && <span className="absolute right-1 top-1" style={{ color: STAR }}><Star size={13} fill="currentColor" /></span>}
     </button>
   );
 }
@@ -201,21 +210,23 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
     e.preventDefault();
   };
   const fav = favourites().has(favKey(it.path));
-  const btn = "rounded p-1.5 text-white/70 hover:bg-white/10 hover:text-white";
+  const btn = ICON_BTN;
+  /** Round arrows floating over the picture, on the card surface so they read on any image. */
+  const float = "absolute grid place-items-center rounded-full border border-subtle p-2 text-text-secondary shadow-xl transition-colors hover:text-text-primary";
   const src = convertFileSrc(it.path);
 
   return (
     <div ref={ref} tabIndex={-1} onKeyDown={onKey} className="absolute inset-0 z-20 flex flex-col outline-none"
       // Inline, not a Tailwind class: a class only this plugin uses is not generated until the dev
       // server restarts, and the viewer was see-through.
-      style={{ background: "rgba(6,6,8,0.97)" }}>
+      style={{ background: "var(--bg-app)" }}>
       {!playing && (
-        <div className="flex shrink-0 items-center gap-1 px-3 py-1.5 text-[12px] text-white/70">
-          <span className="min-w-0 truncate font-medium text-white" title={it.path}>{nameOf(it.path)}</span>
-          <span className="shrink-0 text-white/70 opacity-70">· {new Date(when(it)).toLocaleString()} · {fmtSize(it.size)} · {index + 1} / {list.length}</span>
+        <div className="flex h-10 shrink-0 items-center gap-0.5 border-b border-subtle px-2 text-[12px] text-text-secondary" style={{ background: "var(--bg-panel)" }}>
+          <span className="min-w-0 truncate pl-1 font-medium text-text-primary" title={it.path}>{nameOf(it.path)}</span>
+          <span className="ml-1.5 shrink-0 text-[11.5px] text-text-muted">{new Date(when(it)).toLocaleString()} · {fmtSize(it.size)} · {index + 1} / {list.length}</span>
           <span className="flex-1" />
           <button className={btn} title="Favourite (F)" onClick={() => actions.favourite(it)}>
-            <Star size={15} fill={fav ? "currentColor" : "none"} style={fav ? { color: "#fde047" } : undefined} />
+            <Star size={15} fill={fav ? "currentColor" : "none"} style={fav ? { color: STAR } : undefined} />
           </button>
           <button className={btn} title="Slideshow (Space)" onClick={() => setPlaying(true)}><Play size={15} /></button>
           <button className={btn} title="Open with default app" onClick={() => actions.open(it)}><ExternalLink size={15} /></button>
@@ -224,11 +235,13 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
           <button className={btn} title="Copy path" onClick={() => actions.copyPath(it)}><ClipboardCopy size={15} /></button>
           <button className={btn} title="Copy to folder…" onClick={() => void actions.copy(it)}><Copy size={15} /></button>
           <button className={btn} title="Move to folder…" onClick={() => void actions.move(it)}><FolderInput size={15} /></button>
-          <button className={btn} title="Delete (Del)" onClick={() => actions.trash(it)}><Trash2 size={15} /></button>
+          <button className={btn + " hover:!text-red-400"} title="Delete (Del)" onClick={() => actions.trash(it)}><Trash2 size={15} /></button>
           {canWallpaper(it) && <button className={btn} title="Set as Deck's wallpaper" onClick={() => actions.wallpaper(it)}><Wallpaper size={15} /></button>}
-          <button className={btn} title="Info (I)" onClick={() => setInfo((v) => !v)}>
-            <Info size={15} style={info ? { color: "var(--accent)" } : undefined} />
+          <button className={btn + (info ? " !text-text-primary" : "")} title="Info (I)" onClick={() => setInfo((v) => !v)} aria-pressed={info}
+            style={info ? { background: "var(--accent-soft)" } : undefined}>
+            <Info size={15} />
           </button>
+          <i aria-hidden className="mx-1 h-3.5 w-px bg-white/10" />
           <button className={btn} title="Close (Esc)" onClick={onClose}><X size={16} /></button>
         </div>
       )}
@@ -246,19 +259,22 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
         onPointerUp={() => { drag.current = null; setDragging(false); }}
         style={{ cursor: kind === "photo" && zoom > 1 ? (dragging ? "grabbing" : "grab") : undefined }}>
         {kind === "video" && !playsInline(it.path)
-          ? <div className="text-center text-[13px] text-white/70">
+          ? <div className="flex flex-col items-center gap-3 text-center text-[12.5px] text-text-muted">
               Deck cannot play this kind of video.
-              <button onClick={() => actions.open(it)} className="ml-2 text-white underline">Open with the default app</button>
+              <button onClick={() => actions.open(it)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium text-white transition hover:brightness-110" style={{ background: "var(--accent)" }}>
+                <ExternalLink size={13} /> Open with the default app
+              </button>
             </div>
           : kind === "video"
           ? <video key={it.path} src={src} controls autoPlay className="max-h-full max-w-full" onEnded={() => playing && step(1)} />
           : <img key={it.path} src={needsThumbView(it.path) ? big : src} alt="" draggable={false}
               className={`max-h-full max-w-full select-none object-contain ${dragging ? "" : "transition-transform duration-75"}`}
               style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }} />}
-        <button className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white/70 hover:text-white" onClick={() => step(-1)}><ChevronLeft size={22} /></button>
-        <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/40 p-2 text-white/70 hover:text-white" onClick={() => step(1)}><ChevronRight size={22} /></button>
+        <button className={float + " left-2 top-1/2 -translate-y-1/2"} style={{ background: "var(--bg-card)" }} onClick={() => step(-1)}><ChevronLeft size={20} /></button>
+        <button className={float + " right-2 top-1/2 -translate-y-1/2"} style={{ background: "var(--bg-card)" }} onClick={() => step(1)}><ChevronRight size={20} /></button>
         {playing && (
-          <button className="absolute bottom-4 right-4 rounded-full bg-black/40 p-2 text-white/70 hover:text-white" title="Stop (Space)" onClick={() => setPlaying(false)}>
+          <button className={float + " bottom-4 right-4"} style={{ background: "var(--bg-card)" }} title="Stop (Space)" onClick={() => setPlaying(false)}>
             <Pause size={18} />
           </button>
         )}
@@ -296,15 +312,15 @@ function InfoPanel({ it }: { it: Item }) {
     )] as [string, React.ReactNode]] : []),
   ];
   return (
-    <div className="absolute bottom-0 right-0 top-10 z-10 w-72 overflow-y-auto border-l border-white/10 p-3 text-[12px]"
-      style={{ background: "rgba(14,14,18,0.96)" }}>
+    <div className="scroll-thin absolute bottom-0 right-0 top-10 z-10 w-72 overflow-y-auto border-l border-subtle px-3.5 py-3 text-[12px]"
+      style={{ background: "var(--bg-panel)" }}>
       {rows.map(([k, v]) => (
-        <div key={k} className="mb-2">
-          <div className="text-[10px] uppercase tracking-wide text-white/70 opacity-70">{k}</div>
-          <div className="break-all text-white">{v}</div>
+        <div key={k} className="mb-2.5">
+          <div className="text-[11px] text-text-muted">{k}</div>
+          <div className="break-all text-text-primary">{v}</div>
         </div>
       ))}
-      {!m && <div className="text-white/70">Reading…</div>}
+      {!m && <div className="text-text-muted">Reading…</div>}
     </div>
   );
 }
@@ -315,40 +331,26 @@ function InfoPanel({ it }: { it: Item }) {
  * a change here keeps.
  */
 function TypesMenu({ counts, chosen, stored }: { counts: [string, number][]; chosen: string[]; stored: string[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const off = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
-    window.addEventListener("mousedown", off);
-    return () => window.removeEventListener("mousedown", off);
-  }, [open]);
+  const [at, setAt] = useState<{ x: number; y: number } | null>(null);
   const set = new Set(chosen);
   const toggle = (ext: string) => setTypes(set.has(ext) ? stored.filter((x) => x !== ext) : [...stored, ext]);
   const label = !chosen.length ? "All types" : chosen.length <= 2 ? chosen.map((x) => x.toUpperCase()).join(", ") : `${chosen.length} types`;
+  // Ticked rows keep the menu open, so several types can be picked in one visit.
+  const items: MenuEntry[] = [
+    ...counts.map(([ext, n]): MenuEntry => ({ label: ext.toUpperCase(), hint: n.toLocaleString(), checked: set.has(ext), onClick: () => toggle(ext) })),
+    ...(chosen.length > 0 ? ["sep" as const, { label: "Show all types", onClick: () => setTypes(stored.filter((x) => !set.has(x))) }] : []),
+  ];
   return (
-    <div ref={ref} className="relative">
-      <button onClick={() => setOpen((o) => !o)}
-        className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[12px] ${chosen.length ? "border-accent text-text-primary" : "border-subtle text-text-secondary hover:text-text-primary"}`}>
+    <>
+      {/* A filter that is on carries the accent's ring, as Deck's toggles do. */}
+      <button aria-haspopup="menu" aria-expanded={!!at}
+        onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setAt((o) => (o ? null : { x: r.left, y: r.bottom + 4 })); }}
+        className={BAR_BTN + (chosen.length ? " !text-text-primary" : "")}
+        style={chosen.length ? { background: "var(--accent-soft)", boxShadow: "inset 0 0 0 1px var(--accent)" } : undefined}>
         {label} <ChevronDown size={12} />
       </button>
-      {open && (
-        <div className="glass absolute left-0 top-full z-30 mt-1 max-h-80 w-48 overflow-y-auto rounded-lg p-1 shadow-xl">
-          {counts.map(([ext, n]) => (
-            <label key={ext} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[12px] text-text-secondary hover:bg-white/10">
-              <input type="checkbox" checked={set.has(ext)} onChange={() => toggle(ext)} />
-              <span className="flex-1 text-text-primary">{ext.toUpperCase()}</span>
-              <span className="tabular-nums text-text-muted">{n.toLocaleString()}</span>
-            </label>
-          ))}
-          {chosen.length > 0 && (
-            <button onClick={() => setTypes(stored.filter((x) => !set.has(x)))} className="mt-1 w-full rounded px-2 py-1 text-left text-[12px] text-[var(--accent)] hover:bg-white/10">
-              Show all types
-            </button>
-          )}
-        </div>
-      )}
-    </div>
+      {at && <ContextMenu x={at.x} y={at.y} items={items} onClose={() => setAt(null)} />}
+    </>
   );
 }
 
@@ -517,7 +519,6 @@ function Gallery() {
         else if (e.key === "Escape" && selected.length) { e.preventDefault(); clearSel(); }
       }}>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-subtle px-3 py-2">
-        <Images size={16} style={{ color: "var(--accent)" }} />
         <Segmented<Filter> value={s.filter} onChange={(f) => { setAlbum(null); setFilter(f); }} layoutId="gallery-filter" options={[
           { value: "all", label: "All" }, { value: "photos", label: "Photos" },
           { value: "videos", label: "Videos" }, { value: "favourites", label: "Favourites" },
@@ -526,38 +527,38 @@ function Gallery() {
         <TypesMenu counts={counts} chosen={chosen} stored={s.types} />
         {!showAlbums && (
           <select value={s.sort} onChange={(e) => setSort(e.target.value as Sort)} title="Sort"
-            className="rounded-md border border-subtle bg-elev px-2 py-1 text-[12px] text-text-secondary outline-none hover:text-text-primary">
+            className="h-8 cursor-pointer rounded-lg border border-subtle bg-elev px-2 text-[12px] text-text-secondary outline-none transition-colors hover:border-strong hover:text-text-primary focus:border-[var(--accent)]">
             <option value="newest">Newest first</option>
             <option value="oldest">Oldest first</option>
             <option value="largest">Largest first</option>
             <option value="name">By name</option>
           </select>
         )}
-        <div className="relative w-56">
-          <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />
-          <TextInput value={query} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQuery(e.target.value)}
-            placeholder="Filter by file or folder name" className="pl-7" />
-        </div>
+        <label className="flex h-8 w-56 items-center gap-2 rounded-lg border border-subtle bg-elev px-2.5 transition-colors focus-within:border-[var(--accent)]">
+          <Search size={13} className="shrink-0 text-text-muted" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} spellCheck={false}
+            placeholder="Filter by file or folder name" className="min-w-0 flex-1 bg-transparent text-[12.5px] text-text-primary outline-none placeholder:text-text-muted" />
+        </label>
         <span className="flex-1" />
-        <span className="text-[11px] text-text-muted" title={error || undefined}>
+        <span className="text-[11px] text-text-muted" title={error || undefined} style={error ? { color: "rgb(var(--tone-red-400))" } : undefined}>
           {error ? "Scan failed" : `${showAlbums ? `${folders.length.toLocaleString()} albums` : `${list.length.toLocaleString()} shown`} · scanned ${ago(scannedAt)}`}
           {datesLeft() > 0 && ` · reading dates, ${datesLeft().toLocaleString()} left`}
         </span>
         <button onClick={() => void findDuplicates(visible(getItems(), { filter: "all", query: "", hidden: s.hidden, favourites: favourites() }))
             .catch((e: unknown) => toast(String(e), "error"))}
           disabled={inDups} title="Find files that are exact copies of each other"
-          className="inline-flex items-center gap-1 rounded-md border border-subtle px-2 py-1 text-[12px] text-text-secondary hover:text-text-primary disabled:opacity-60">
+          className={BAR_BTN}>
           <Layers size={12} /> Duplicates
         </button>
         <button onClick={() => void rescan()} disabled={scanning} title="Walk every fixed drive again"
-          className="inline-flex items-center gap-1 rounded-md border border-subtle px-2 py-1 text-[12px] text-text-secondary hover:text-text-primary disabled:opacity-60">
+          className={BAR_BTN}>
           <RefreshCw size={12} className={scanning ? "animate-spin" : ""} /> {scanning ? "Scanning…" : "Rescan"}
         </button>
       </div>
 
       {inDups && (
         <div className="flex shrink-0 items-center gap-2 border-b border-subtle px-3 py-1.5 text-[12px]">
-          <button onClick={() => { closeDuplicates(); clearSel(); }} className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-text-muted hover:bg-white/10 hover:text-text-primary">
+          <button onClick={() => { closeDuplicates(); clearSel(); }} className={BAR_TEXT}>
             <ChevronLeft size={14} /> Back
           </button>
           <Layers size={13} className="text-text-muted" />
@@ -575,7 +576,7 @@ function Gallery() {
             { label: allFav ? "Unfavourite" : "Favourite", icon: Star, run: () => { setFavourite(selected, !allFav); } },
             { label: "Copy to…", icon: Copy, run: async () => { const dir = await pickFolder(); if (dir) void bulk("Copied", (it) => copyTo(it, dir), false); } },
             { label: "Move to…", icon: FolderInput, run: async () => { const dir = await pickFolder(); if (dir) void bulk("Moved", (it) => moveTo(it, dir)); } },
-            { label: "Delete", icon: Trash2, run: () => setBulkConfirm({
+            { label: "Delete", icon: Trash2, danger: true, run: () => setBulkConfirm({
               title: `Delete ${selected.length.toLocaleString()} items?`,
               body: "They go to the Recycle Bin, where they can be restored.",
               confirmLabel: "Delete",
@@ -583,46 +584,56 @@ function Gallery() {
             }) },
           ].map((b) => (
             <button key={b.label} onClick={() => void b.run()}
-              className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-text-secondary hover:bg-white/10 hover:text-text-primary">
+              className={BAR_TEXT + " px-2" + ("danger" in b ? " hover:!text-red-400" : "")}>
               <b.icon size={13} /> {b.label}
             </button>
           ))}
           <span className="flex-1" />
           {selected.length < order.length && (
-            <button onClick={() => setSel({ paths: new Set(order), anchor: null })} className="rounded-md px-2 py-1 text-text-secondary hover:bg-white/10 hover:text-text-primary">
+            <button onClick={() => setSel({ paths: new Set(order), anchor: null })} className={BAR_TEXT + " px-2"}>
               Select all {order.length.toLocaleString()}
             </button>
           )}
-          <button onClick={clearSel} title="Esc" className="rounded-md px-2 py-1 text-text-secondary hover:bg-white/10 hover:text-text-primary">Clear</button>
+          <button onClick={clearSel} title="Esc" className={BAR_TEXT + " px-2"}>Clear</button>
         </div>
       )}
       {inAlbums && album && (
         <div className="flex shrink-0 items-center gap-1.5 border-b border-subtle px-3 py-1.5 text-[12px]">
-          <button onClick={() => setAlbum(null)} className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-text-muted hover:bg-white/10 hover:text-text-primary">
+          <button onClick={() => setAlbum(null)} className={BAR_TEXT}>
             <ChevronLeft size={14} /> Albums
           </button>
           <Folder size={13} className="text-text-muted" />
-          <span className="font-semibold text-text-primary">{nameOf(album) || album}</span>
+          <span className="font-medium text-text-primary">{nameOf(album) || album}</span>
           <span className="min-w-0 truncate text-text-muted" title={album}>{album}</span>
-          <button onClick={() => void fsReveal(album)} title="Show in Explorer" className="ml-auto rounded p-1 text-text-muted hover:bg-white/10 hover:text-text-primary">
+          <button onClick={() => void fsReveal(album)} title="Show in Explorer" className="ml-auto grid size-6 shrink-0 place-items-center rounded-md text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary">
             <FolderOpen size={13} />
           </button>
         </div>
       )}
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-3" onScroll={(e) => setTop(e.currentTarget.scrollTop)}>
         {empty ? (
-          <div className="py-16 text-center text-[13px] text-text-muted">
-            {scanning ? "Looking for photos and videos on every fixed drive… this takes up to a minute the first time."
-              : "No photos or videos found. Check the skipped folders in the plugin's settings, then Rescan."}
+          <div className="mx-auto mt-16 flex max-w-[460px] items-start gap-2.5 rounded-lg border border-subtle bg-elev px-3 py-3 text-[12px] leading-relaxed text-text-muted">
+            {scanning ? <RefreshCw size={16} className="mt-0.5 shrink-0 animate-spin" /> : <ImageIcon size={16} className="mt-0.5 shrink-0" />}
+            <div className="flex flex-col items-start gap-2.5">
+              <span>{scanning ? "Looking for photos and videos on every fixed drive… this takes up to a minute the first time."
+                : "No photos or videos found. Check the skipped folders in the plugin's settings, then rescan."}</span>
+              {!scanning && (
+                <button onClick={() => void rescan()}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-medium text-white transition hover:brightness-110" style={{ background: "var(--accent)" }}>
+                  <RefreshCw size={13} /> Rescan
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="relative" style={{ height: tops[tops.length - 1] }}>
             {rows.slice(from, to).map((r, k) => {
               const i = from + k;
               return r.kind === "head" ? (
-                <div key={`h${i}`} className="absolute left-0 right-0 flex items-end pb-1.5 text-[12px] font-semibold text-text-primary"
+                <div key={`h${i}`} className="absolute left-0 right-0 flex items-end gap-1.5 pb-1.5 text-[12px] font-medium text-text-secondary"
                   style={{ top: tops[i], height: HEAD }}>
-                  {r.label} <span className="ml-1.5 font-normal text-text-muted">{r.count.toLocaleString()}</span>
+                  {r.label}
+                  <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10.5px] font-normal text-text-secondary" style={{ background: "var(--bg-elev)" }}>{r.count.toLocaleString()}</span>
                 </div>
               ) : (
                 <div key={`r${i}`} className="absolute left-0 flex" style={{ top: tops[i], gap: GAP }}>
@@ -666,23 +677,25 @@ export function Settings() {
   return (
     <div className="space-y-3 text-[12px]">
       <Field label="Skipped folders" hint="One name per line. A folder with this name is skipped at any depth.">
-        <textarea value={excludes} onChange={(e) => setExcludes(e.target.value)} rows={8}
-          className="w-full rounded-md border border-subtle bg-elev px-2 py-1 font-mono text-[12px] outline-none" />
+        <textarea value={excludes} onChange={(e) => setExcludes(e.target.value)} rows={8} spellCheck={false}
+          className="w-full max-w-xl rounded-lg border border-subtle bg-elev px-2.5 py-2 font-mono text-[12px] text-text-primary outline-none transition-colors focus:border-[var(--accent)]" />
       </Field>
       <Field label="Smallest file (KB)" hint="Smaller files are icons and sprites rather than pictures.">
         <TextInput value={minKb} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setMinKb(e.target.value)} className="w-24" />
       </Field>
       <button disabled={!dirty} onClick={apply}
-        className="rounded-md border border-subtle px-2.5 py-1 text-text-secondary hover:text-text-primary disabled:opacity-50">
+        className="inline-flex h-8 items-center rounded-lg px-3 text-[12.5px] font-medium text-white transition hover:brightness-110 disabled:opacity-50" style={{ background: "var(--accent)" }}>
         Save and rescan
       </button>
-      <div>
-        <div className="mb-1 font-semibold text-text-primary">Hidden folders</div>
+      <div className="max-w-xl">
+        <div className="mb-1 text-[12px] font-medium text-text-secondary">Hidden folders</div>
         {s.hidden.length === 0 ? <div className="text-text-muted">None. Right-click a picture and choose “Hide this folder”.</div>
           : s.hidden.map((h) => (
-            <div key={h} className="flex items-center gap-2 py-0.5">
+            <div key={h} className="group flex h-6 items-center gap-2 rounded-md px-2 transition-colors hover:bg-white/5">
+              <EyeOff size={13} className="shrink-0 text-text-muted" />
               <span className="min-w-0 flex-1 truncate text-text-secondary" title={h}>{h}</span>
-              <button onClick={() => unhideFolder(h)} className="text-[var(--accent)] hover:underline">Unhide</button>
+              <button onClick={() => unhideFolder(h)}
+                className="shrink-0 rounded px-1.5 text-[11.5px] text-text-muted opacity-0 transition-colors hover:bg-white/10 hover:text-text-primary focus:opacity-100 group-hover:opacity-100">Unhide</button>
             </div>
           ))}
       </div>
