@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { convertFileSrc, fsOpen, fsReveal, fsThumbnail, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
 import { getSettings as deckSettings, saveSettings as saveDeckSettings } from "../shim/settings.js";
-import { ConfirmDialog, ContextMenu, Segmented, TextInput, Field, toast, type ConfirmState, type MenuEntry } from "../shim/ui.js";
+import { chordFor, ConfirmDialog, ContextMenu, parseChord, Segmented, TextInput, Field, toast, type ConfirmState, type MenuEntry } from "../shim/ui.js";
 
 /** The favourite star, in the amber tone (a light theme darkens it). */
 const STAR = "rgb(var(--tone-amber-300))";
@@ -199,13 +199,15 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
   if (!it) return null;
 
   const onKey = (e: React.KeyboardEvent) => {
+    // Trash, favourite and info follow their keys in Settings > Keybindings (declared below).
+    const chord = parseChord(e.nativeEvent);
     if (e.key === "ArrowRight") step(1);
     else if (e.key === "ArrowLeft") step(-1);
     else if (e.key === "Escape") { if (playing) setPlaying(false); else onClose(); }
     else if (e.key === " ") setPlaying((p) => !p);
-    else if (e.key === "Delete") actions.trash(it);
-    else if (e.key.toLowerCase() === "f") actions.favourite(it);
-    else if (e.key.toLowerCase() === "i") setInfo((v) => !v);
+    else if (chord === chordFor("plugin:gallery:trash")) actions.trash(it);
+    else if (chord === chordFor("plugin:gallery:favourite")) actions.favourite(it);
+    else if (chord === chordFor("plugin:gallery:info")) setInfo((v) => !v);
     else return;
     e.preventDefault();
   };
@@ -662,6 +664,13 @@ function Gallery() {
 
 export default Gallery;
 export const PaneView = Gallery;
+
+// The photo viewer's keys. Defaults only; a rebinding in Settings > Keybindings wins.
+export const keybindings = () => [
+  { id: "trash", title: "Move the photo to the Recycle Bin", defaultChord: "delete" },
+  { id: "favourite", title: "Favourite the photo", defaultChord: "f" },
+  { id: "info", title: "Show the photo's details", defaultChord: "i" },
+];
 
 /** What a scan skips, and the folders hidden from view. Settings > Plugins > Gallery. */
 export function Settings() {
