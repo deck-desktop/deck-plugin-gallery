@@ -190,11 +190,17 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
     // Re-armed per item, not per render: a favourite or a finished scan re-renders the viewer.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, timed, index]);
+  // The viewer's own document, the one its fullscreen is in: Deck's main window's, or a floating
+  // window's, which the main page's exitFullscreen does not leave.
   useEffect(() => {
+    const doc = ref.current?.ownerDocument ?? document;
     if (playing) void ref.current?.requestFullscreen?.().catch(() => {});
-    else if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else if (doc.fullscreenElement) void doc.exitFullscreen().catch(() => {});
   }, [playing]);
-  useEffect(() => () => { if (document.fullscreenElement) void document.exitFullscreen().catch(() => {}); }, []);
+  useEffect(() => {
+    const doc = ref.current?.ownerDocument ?? document;
+    return () => { if (doc.fullscreenElement) void doc.exitFullscreen().catch(() => {}); };
+  }, []);
   useEffect(() => { if (!it) onClose(); });
   if (!it) return null;
 
