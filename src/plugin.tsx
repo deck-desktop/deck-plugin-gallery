@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { convertFileSrc, fsList, fsOpen, fsReveal, fsThumbnail, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
 import { getSettings as deckSettings, saveSettings as saveDeckSettings } from "../shim/settings.js";
-import { chordFor, ConfirmDialog, ContextMenu, parseChord, Segmented, TextInput, Field, toast, type ConfirmState, type MenuEntry } from "../shim/ui.js";
+import { chordFor, ConfirmDialog, ContextMenu, parseChord, Segmented, TextInput, Field, type ConfirmState, type MenuEntry } from "../shim/ui.js";
+import { notice, failure } from "./notice";
 
 /** The favourite star, in the amber tone (a light theme darkens it). */
 const STAR = "rgb(var(--tone-amber-300))";
@@ -52,7 +53,7 @@ function ago(t: number) {
 function useActions(onRemoved?: (path: string) => void) {
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const run = (p: Promise<unknown>, done: string) =>
-    p.then(() => toast(done, "success")).catch((e: unknown) => toast(String(e), "error"));
+    p.then(() => notice(done)).catch((e: unknown) => failure(String(e)));
   const actions = {
     favourite: (it: Item) => toggleFavourite(it.path),
     reveal: (it: Item) => void fsReveal(it.path),
@@ -77,7 +78,7 @@ function useActions(onRemoved?: (path: string) => void) {
     }),
     hide: (it: Item) => {
       hideFolder(folderOf(it.path));
-      toast(`Hidden: ${folderOf(it.path)}. Unhide it in the plugin's settings.`, "info");
+      notice(`Hidden: ${folderOf(it.path)}. Unhide it in the plugin's settings.`);
     },
   };
   const dialog = <ConfirmDialog state={confirm} onClose={() => setConfirm(null)} />;
@@ -455,7 +456,8 @@ function Gallery() {
   const bulk = async (what: string, each: (it: Item) => Promise<unknown>, clear = true) => {
     let failed = 0;
     for (const it of selItems) { try { await each(it); } catch { failed++; } }
-    toast(failed ? `${what}: ${selItems.length - failed} done, ${failed} failed` : `${what}: ${selItems.length} done`, failed ? "error" : "success");
+    if (failed) failure(`${what}: ${selItems.length - failed} done, ${failed} failed`);
+    else notice(`${what}: ${selItems.length} done`);
     if (clear) clearSel();
   };
   const allFav = selItems.length > 0 && selItems.every((it) => favourites().has(favKey(it.path)));
@@ -555,7 +557,7 @@ function Gallery() {
           {datesLeft() > 0 && ` · reading dates, ${datesLeft().toLocaleString()} left`}
         </span>
         <button onClick={() => void findDuplicates(visible(getItems(), { filter: "all", query: "", hidden: s.hidden, favourites: favourites() }))
-            .catch((e: unknown) => toast(String(e), "error"))}
+            .catch((e: unknown) => failure(String(e)))}
           disabled={inDups} title="Find files that are exact copies of each other"
           className={BAR_BTN}>
           <Layers size={12} /> Duplicates
