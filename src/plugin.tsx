@@ -10,7 +10,7 @@ import {
   FolderInput, EyeOff, Pause, Search, ChevronDown, Folder, ClipboardCopy, Check, Image as ImageIcon,
   Info, Wallpaper, Layers, MapPin,
 } from "lucide-react";
-import { convertFileSrc, fsOpen, fsReveal, fsThumbnail, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
+import { convertFileSrc, fsList, fsOpen, fsReveal, fsThumbnail, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
 import { getSettings as deckSettings, saveSettings as saveDeckSettings } from "../shim/settings.js";
 import { chordFor, ConfirmDialog, ContextMenu, parseChord, Segmented, TextInput, Field, toast, type ConfirmState, type MenuEntry } from "../shim/ui.js";
 
@@ -24,7 +24,7 @@ const BAR_TEXT = "inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 
 const ICON_BTN = "grid size-7 shrink-0 place-items-center rounded-lg text-text-muted transition-colors hover:bg-white/5 hover:text-text-primary"
 import {
   albums, clickSelect, ext, fmtSize, folderOf, groupByDate, groupsByDate, kindOf, moveFocus, nameOf, needsThumbView, playsInline, rowRange,
-  sortItems, toRows, typeCounts, visible, favKey, when,
+  sortItems, toRows, typeCounts, visible, favKey, when, PHOTO_EXTS, VIDEO_EXTS,
   type Album, type Filter, type Item, type Sort,
 } from "./logic";
 import {
@@ -141,7 +141,7 @@ function Tile({ item, size, selected, selecting, focused, onClick, onMenu }: {
 }
 
 /** Full size, one at a time: arrows to move, wheel to zoom, Space for a slideshow. */
-function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: number; setIndex: (i: number) => void; onClose: () => void }) {
+function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: number; setIndex: (i: number) => void; onClose?: () => void }) {
   const it = list[index];
   const ref = useRef<HTMLDivElement>(null);
   // Zoom and pan of a photo. The pan is the image's offset from centre in screen pixels.
@@ -201,7 +201,7 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
     const doc = ref.current?.ownerDocument ?? document;
     return () => { if (doc.fullscreenElement) void doc.exitFullscreen().catch(() => {}); };
   }, []);
-  useEffect(() => { if (!it) onClose(); });
+  useEffect(() => { if (!it) onClose?.(); });
   if (!it) return null;
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -209,7 +209,7 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
     const chord = parseChord(e.nativeEvent);
     if (e.key === "ArrowRight") step(1);
     else if (e.key === "ArrowLeft") step(-1);
-    else if (e.key === "Escape") { if (playing) setPlaying(false); else onClose(); }
+    else if (e.key === "Escape") { if (playing) setPlaying(false); else if (onClose) onClose(); else return; }
     else if (e.key === " ") setPlaying((p) => !p);
     else if (chord === chordFor("plugin:gallery:trash")) actions.trash(it);
     else if (chord === chordFor("plugin:gallery:favourite")) actions.favourite(it);
@@ -249,8 +249,10 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
             style={info ? { background: "var(--accent-soft)" } : undefined}>
             <Info size={15} />
           </button>
-          <i aria-hidden className="mx-1 h-3.5 w-px bg-white/10" />
-          <button className={btn} title="Close (Esc)" onClick={onClose}><X size={16} /></button>
+          {onClose && <>
+            <i aria-hidden className="mx-1 h-3.5 w-px bg-white/10" />
+            <button className={btn} title="Close (Esc)" onClick={onClose}><X size={16} /></button>
+          </>}
         </div>
       )}
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden"
@@ -668,8 +670,38 @@ function Gallery() {
   );
 }
 
+/**
+ * A photo or video opened in Gallery from anywhere in Deck (Files, the Editor's file tree, a link in
+ * a terminal): the viewer on it, its arrows going through the other photos and videos in its
+ * folder, by name. Its tab is closed as any tab is, so the viewer has no close button of its own.
+ */
+function FileView({ file }: { file: string }) {
+  const [list, setList] = useState<Item[]>([{ path: file, size: 0, mtime: 0 }]);
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const dir = file.slice(0, Math.max(file.lastIndexOf("\\"), file.lastIndexOf("/")));
+    let live = true;
+    fsList(dir, false).then((entries: { name: string; path: string; dir: boolean; size: number; mtimeMs: number }[]) => {
+      if (!live) return;
+      const items = entries.filter((e) => !e.dir && OPENS.includes(`.${ext(e.path)}`))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        .map((e) => ({ path: e.path, size: e.size, mtime: e.mtimeMs }));
+      const i = items.findIndex((x) => x.path.toLowerCase() === file.toLowerCase());
+      if (i >= 0) { setList(items); setIndex(i); }
+    }).catch((e: unknown) => console.warn("[gallery] the folder could not be listed", e));
+    return () => { live = false; };
+  }, [file]);
+  return <div className="relative h-full w-full"><Viewer list={list} index={index} setIndex={setIndex} /></div>;
+}
+
+/** What Deck opens in Gallery: photos (HEIC and TIFF through Windows' thumbnail) and the videos it plays. */
+const OPENS = [...PHOTO_EXTS, ...VIDEO_EXTS.filter((e) => playsInline(`x.${e}`))].map((e) => `.${e}`);
+export const opens = OPENS;
+
 export default Gallery;
-export const PaneView = Gallery;
+export function PaneView({ file }: { file?: string }) {
+  return file ? <FileView file={file} /> : <Gallery />;
+}
 
 // The photo viewer's keys. Defaults only; a rebinding in Settings > Keybindings wins.
 export const keybindings = () => [
