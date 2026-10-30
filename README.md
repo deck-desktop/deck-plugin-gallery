@@ -1,10 +1,8 @@
 # Gallery for Deck
 
-Every photo and video on this PC's fixed drives, newest first and grouped by date. It opens as a
-tab in the top bar, and can also fill a pane in Workspaces (a pane's menu, then **Gallery**).
-
-Needs Deck 0.21.0 or newer, which added the native parts it uses: finding files across the
-drives, Windows' own thumbnails, photo properties, content hashes and the Recycle Bin.
+Every photo and video on this PC's fixed drives, newest first and grouped by date. Open it from the
+**+** beside your tabs and choose **Gallery**. A photo or video opened anywhere else in Deck opens
+in its viewer too.
 
 ## Where the pictures come from
 
@@ -16,9 +14,9 @@ new screenshot or download appears without a rescan.
 
 Folders that hold images which are not pictures are skipped: Windows, Program Files, ProgramData,
 AppData, `node_modules`, `.git`, build folders and the like, and files under 30 KB (icons and
-sprites). Both lists are editable in Settings → Plugins → Gallery. Right-click any picture and
-choose **Hide this folder** for anything else; hidden folders can be shown again from the same
-settings.
+sprites). Both are set in the plugin's settings (**Skipped folders**, **Smallest file**).
+Right-click any picture and choose **Hide this folder** for anything else; hidden folders are
+listed in the same settings, to unhide.
 
 ## Browsing
 
@@ -35,9 +33,10 @@ settings.
 
 Arrow keys move between pictures and Esc closes. The wheel zooms toward the cursor, drag pans
 when zoomed in, and a double-click zooms to 2x or back. Space runs a full-screen slideshow, F
-favourites the picture, Del deletes it, and I opens the info panel: dimensions, date taken,
-camera, video length and location, with a link to the map. Videos Deck cannot play (mkv, avi,
-wmv) offer to open in the default app instead.
+favourites the picture, Delete moves it to the Recycle Bin, and I opens the info panel:
+dimensions, date taken, camera, video length and location, with a link to the map. F, Delete and
+I can be changed in Settings > Keybindings. Videos Deck cannot play (mkv, avi, wmv) offer to open
+in the default app instead.
 
 ## Doing things with pictures
 
@@ -54,11 +53,5 @@ ready to delete.
 
 ## Where things are kept
 
-On this machine only, in Deck's own config: the settings and favourites in `plugin-gallery`, the
-index in `plugin-gallery-index`. Plugin configs never sync, and these are paths on this PC's
-disks.
-
-```sh
-node plugins/gallery/build.mjs
-node plugins/gallery/gallery.check.mjs
-```
+On this machine only, in Deck's config: the settings and favourites in `plugin-gallery.json`, the
+index in `plugin-gallery-index.json`.
