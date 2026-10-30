@@ -4,6 +4,8 @@ Every photo and video on this PC's fixed drives, newest first and grouped by dat
 **+** beside your tabs and choose **Gallery**. A photo or video opened anywhere else in Deck opens
 in its viewer too.
 
+![Gallery](docs/screenshot.png)
+
 ## Where the pictures come from
 
 The first time it opens, the gallery walks every fixed drive (USB sticks and network shares are
