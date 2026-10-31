@@ -6,6 +6,9 @@
   "color": "#e879f9",
   "version": "1.2.1",
   "minDeck": "1.9.0",
+  "platforms": [
+    "windows"
+  ],
   "permissions": [
     "files",
     "system"
