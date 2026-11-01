@@ -1,4 +1,4 @@
-// Thumbnails from Windows (fsThumbnail), loaded only for tiles on screen.
+// Thumbnails from the system (fsThumbnail), loaded only for tiles on screen.
 //
 // A queue rather than a request per tile: scrolling past a thousand tiles mounts and unmounts a
 // thousand of them, and only the ones still mounted should cost anything. Newest requests go
@@ -12,7 +12,7 @@ export const THUMB_PX = 256;
 const CACHE = 800;
 const PARALLEL = 4;
 
-/** path -> blob URL, or "" for a file Windows has no thumbnail for. Insertion order is age. */
+/** path -> blob URL, or "" for a file the system has no thumbnail for. Insertion order is age. */
 const cache = new Map<string, string>();
 const waiting = new Map<string, Set<(url: string) => void>>();
 const queue: string[] = [];

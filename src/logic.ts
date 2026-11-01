@@ -16,11 +16,11 @@ export type Sort = "newest" | "oldest" | "largest" | "name";
 export const PHOTO_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif", "tif", "tiff"];
 export const VIDEO_EXTS = ["mp4", "mov", "mkv", "webm", "avi", "m4v", "wmv"];
 
-/** Folders skipped at any depth: Windows and programs, app data, and build and package folders,
+/** Folders skipped at any depth: the system and programs, app data, and build and package folders,
  *  which hold thousands of images that are parts of something rather than pictures. */
 export const DEFAULT_EXCLUDES = [
   "Windows", "Windows.old", "Program Files", "Program Files (x86)", "ProgramData", "AppData",
-  "$Recycle.Bin", "System Volume Information", "MSOCache",
+  "$Recycle.Bin", "System Volume Information", "MSOCache", "snap",
   "node_modules", ".git", "build", ".dart_tool", "target", "dist", ".gradle", "Pods",
 ];
 /** Smaller than this is an icon or a sprite, not a picture. */

@@ -2,7 +2,7 @@
 //
 // A tab and a pane view, both the same component over one shared store (store.ts). The files come
 // from Deck's fs_find, a walk of every fixed drive saved as an index and redone in the background
-// when it is an hour old; thumbnails are Windows' own (thumbs.ts). The grid draws only the rows on
+// when it is an hour old; thumbnails are the system's own (thumbs.ts). The grid draws only the rows on
 // screen, so a disk with tens of thousands of pictures scrolls like a short one.
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
@@ -10,7 +10,10 @@ import {
   FolderInput, EyeOff, Pause, Search, ChevronDown, Folder, ClipboardCopy, Check, Image as ImageIcon,
   Info, Wallpaper, Layers, MapPin,
 } from "lucide-react";
-import { convertFileSrc, fsList, fsOpen, fsReveal, fsThumbnail, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
+import { convertFileSrc, fsList, fsOpen, fsReveal, fsThumbnail, isWindows, mediaMeta, openExternal, pickFolder, setWallpaper, type MediaMeta } from "../shim/bridge.js";
+
+/** Where a deleted photo goes: the Recycle Bin on Windows, the desktop's Trash elsewhere. */
+const BIN = () => (isWindows() ? "the Recycle Bin" : "the Trash");
 import { getSettings as deckSettings, saveSettings as saveDeckSettings } from "../shim/settings.js";
 import { chordFor, ConfirmDialog, ContextMenu, parseChord, Segmented, TextInput, Field, type ConfirmState, type MenuEntry } from "../shim/ui.js";
 import { notice, failure } from "./notice";
@@ -72,9 +75,9 @@ function useActions(onRemoved?: (path: string) => void) {
     },
     trash: (it: Item) => setConfirm({
       title: `Delete ${nameOf(it.path)}?`,
-      body: "It goes to the Recycle Bin, where it can be restored.",
+      body: `It goes to ${BIN()}, where it can be restored.`,
       confirmLabel: "Delete",
-      onConfirm: () => run(trash(it.path).then(() => onRemoved?.(it.path)), "Moved to the Recycle Bin"),
+      onConfirm: () => run(trash(it.path).then(() => onRemoved?.(it.path)), `Moved to ${BIN()}`),
     }),
     hide: (it: Item) => {
       hideFolder(folderOf(it.path));
@@ -296,7 +299,7 @@ function Viewer({ list, index, setIndex, onClose }: { list: Item[]; index: numbe
   );
 }
 
-/** The viewer's side panel: what Windows knows about the file, read when it is shown. */
+/** The viewer's side panel: what the system knows about the file, read when it is shown. */
 function InfoPanel({ it }: { it: Item }) {
   const [m, setM] = useState<MediaMeta | null>(null);
   useEffect(() => {
@@ -590,9 +593,9 @@ function Gallery() {
             { label: "Move to…", icon: FolderInput, run: async () => { const dir = await pickFolder(); if (dir) void bulk("Moved", (it) => moveTo(it, dir)); } },
             { label: "Delete", icon: Trash2, danger: true, run: () => setBulkConfirm({
               title: `Delete ${selected.length.toLocaleString()} items?`,
-              body: "They go to the Recycle Bin, where they can be restored.",
+              body: `They go to ${BIN()}, where they can be restored.`,
               confirmLabel: "Delete",
-              onConfirm: () => void bulk("Moved to the Recycle Bin", (it) => trash(it.path)),
+              onConfirm: () => void bulk(`Moved to ${BIN()}`, (it) => trash(it.path)),
             }) },
           ].map((b) => (
             <button key={b.label} onClick={() => void b.run()}
@@ -696,7 +699,7 @@ function FileView({ file }: { file: string }) {
   return <div className="relative h-full w-full"><Viewer list={list} index={index} setIndex={setIndex} /></div>;
 }
 
-/** What Deck opens in Gallery: photos (HEIC and TIFF through Windows' thumbnail) and the videos it plays. */
+/** What Deck opens in Gallery: photos (HEIC and TIFF through the system's thumbnail) and the videos it plays. */
 const OPENS = [...PHOTO_EXTS, ...VIDEO_EXTS.filter((e) => playsInline(`x.${e}`))].map((e) => `.${e}`);
 export const opens = OPENS;
 
@@ -707,7 +710,7 @@ export function PaneView({ file }: { file?: string }) {
 
 // The photo viewer's keys. Defaults only; a rebinding in Settings > Keybindings wins.
 export const keybindings = () => [
-  { id: "trash", title: "Move the photo to the Recycle Bin", defaultChord: "delete" },
+  { id: "trash", title: "Delete the photo (to the Recycle Bin or Trash)", defaultChord: "delete" },
   { id: "favourite", title: "Favourite the photo", defaultChord: "f" },
   { id: "info", title: "Show the photo's details", defaultChord: "i" },
 ];

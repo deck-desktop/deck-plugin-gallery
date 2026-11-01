@@ -1,14 +1,11 @@
 {
   "id": "gallery",
   "name": "Gallery",
-  "description": "Every photo and video on this PC's drives, newest first and grouped by date, with Windows' own thumbnails. A full-size viewer and slideshow, favourites, move, copy and delete to the Recycle Bin.",
+  "description": "Every photo and video on this computer, newest first and grouped by date, with the system's own thumbnails. A full-size viewer and slideshow, favourites, move, copy and delete.",
   "icon": "Images",
   "color": "#e879f9",
   "version": "1.2.1",
   "minDeck": "1.9.0",
-  "platforms": [
-    "windows"
-  ],
   "permissions": [
     "files",
     "system"

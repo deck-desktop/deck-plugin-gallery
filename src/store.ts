@@ -7,7 +7,7 @@
 // - `plugin-gallery-index`: every file the last scan found. Tens of thousands of rows, so it is a
 //   file of its own, written only when a scan finds something different (rule 3: every write
 //   wakes every config listener in Deck).
-import { configRead, configWrite, fsFind, fsTrash, fsMove, fsCopy, fsHomeDir, fsHash, mediaMeta } from "../shim/bridge.js";
+import { configRead, configWrite, fsFind, fsTrash, fsMove, fsCopy, fsHomeDir, fsHash, isWindows, mediaMeta } from "../shim/bridge.js";
 import { DEFAULT_EXCLUDES, DEFAULT_MIN_KB, PHOTO_EXTS, VIDEO_EXTS, duplicateGroups, favKey, inFolder, sameSize, type Filter, type Item, type Sort } from "./logic";
 
 const CFG = "plugin-gallery";
@@ -98,7 +98,7 @@ export async function rescan(): Promise<void> {
 }
 
 /** Where new pictures usually arrive: screenshots, downloads, a phone's import, the desktop. */
-const RECENT_DIRS = ["Pictures", "Videos", "Desktop", "Downloads", "OneDrive\\Pictures", "OneDrive\\Desktop"];
+const RECENT_DIRS = [["Pictures"], ["Videos"], ["Desktop"], ["Downloads"], ["OneDrive", "Pictures"], ["OneDrive", "Desktop"]];
 let home = "";
 let refreshing = false;
 
@@ -113,7 +113,8 @@ export async function refreshRecent(): Promise<void> {
   refreshing = true;
   try {
     home ||= await fsHomeDir();
-    const roots = RECENT_DIRS.map((d) => `${home}\\${d}`);
+    const sep = isWindows() ? "\\" : "/";
+    const roots = RECENT_DIRS.map((d) => [home, ...d].join(sep));
     const found = await fsFind(roots, [...PHOTO_EXTS, ...VIDEO_EXTS], settings.excludes, settings.minKb * 1024);
     const inRoots = (p: string) => roots.some((r) => inFolder(p, r));
     const before = items.filter((it) => inRoots(it.path));
@@ -244,7 +245,7 @@ function forget(path: string, replacement?: Item) {
   } else emit();
 }
 
-/** To the Recycle Bin. */
+/** To the Recycle Bin, or the Trash off Windows. */
 export async function trash(path: string) {
   await fsTrash(path);
   forget(path);
